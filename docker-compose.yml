@@ -1,7 +1,6 @@
-version: '3.5'
 services:
- zabbix-proxy-sqlite3:
-  image: zabbix/zabbix-proxy-sqlite3:alpine-7.0.15
+ zabbix-proxy-mysql:
+  image: zabbix/zabbix-proxy-mysql:alpine-7.0-latest
   restart: always
   ports:
    - "10051:10051"
@@ -21,24 +20,42 @@ services:
     hard: 40000
   env_file:
    - ./zabbix/env_vars/.env_prx
-   - ./zabbix/env_vars/.env_prx_sqlite3
+   - ./zabbix/env_vars/.env_prx_mysql
   networks:
    zbx_net_backend:
     aliases:
+     - zabbix-proxy-mysql
+     - zabbix-proxy-alpine-mysql
+     - zabbix-proxy-mysql-alpine
      - zabbix-proxy-sqlite3
-     - zabbix-proxy-alpine-sqlite3
-     - zabbix-proxy-sqlite3-alpine
    zbx_net_frontend:
   stop_grace_period: 30s
   labels:
-   com.zabbix.description: "Zabbix proxy with SQLite3 database support"
+   com.zabbix.description: "Zabbix proxy with MySQL/MariaDB database support"
    com.zabbix.company: "Zabbix LLC"
    com.zabbix.component: "zabbix-proxy"
-   com.zabbix.dbtype: "sqlite3"
+   com.zabbix.dbtype: "mysql"
    com.zabbix.os: "alpine"
+  depends_on:
+   - zabbix-proxy-db
+
+ zabbix-proxy-db:
+  image: mariadb:10.11
+  restart: always
+  environment:
+   MYSQL_DATABASE: zabbix_proxy
+   MYSQL_USER: zabbix
+   MYSQL_PASSWORD: zabbix_pass
+   MYSQL_ROOT_PASSWORD: zabbix_root_pass
+  volumes:
+   - zabbix_proxy_mysqldata:/var/lib/mysql
+   - ./zabbix/mariadb.cnf:/etc/mysql/conf.d/zabbix.cnf:ro
+  networks:
+   zbx_net_backend:
+  stop_grace_period: 30s
 
  zabbix-agent:
-  image: zabbix/zabbix-agent:alpine-7.0.15
+  image: zabbix/zabbix-agent:alpine-7.0-latest
   restart: always
   ports:
    - "10050:10050"
@@ -79,3 +96,4 @@ networks:
     internal: true
 volumes:
   snmptraps:
+  zabbix_proxy_mysqldata:
